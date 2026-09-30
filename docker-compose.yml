@@ -1,0 +1,11 @@
+services:
+  tsc-print:
+    build: .
+    container_name: tsc-print
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    environment:
+      PRINTER_DEVICE: /dev/usb/lp0
+    devices:
+      - /dev/usb/lp0:/dev/usb/lp0

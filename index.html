@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Генератор TSC (Pro Version)</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background-color: #1e1e1e; color: #d4d4d4; padding: 20px; margin: 0; }
+        .main-wrapper { display: flex; gap: 20px; max-width: 1300px; margin: 0 auto; align-items: stretch; flex-wrap: wrap; }
+        .panel { background: #252526; padding: 25px; border-radius: 8px; border: 1px solid #333; display: flex; flex-direction: column; flex: 1; min-width: 320px; }
+        
+        h2 { margin-top: 0; color: #4fc1ff; border-bottom: 1px solid #444; padding-bottom: 10px; font-size: 16px; font-weight: normal; }
+        .section-title { font-size: 11px; font-weight: bold; color: #858585; margin: 15px 0 8px 0; text-transform: uppercase; letter-spacing: 1px; }
+        
+        /* Пресеты и переключатели */
+        .preset-select { width: 100%; padding: 8px; background: #3c3c3c; color: white; border: 1px solid #555; border-radius: 4px; margin-bottom: 15px; font-size: 14px; outline: none; }
+        .toggle-group { display: flex; gap: 10px; margin-bottom: 15px; }
+        .toggle-label { flex: 1; text-align: center; background: #333; padding: 8px; border-radius: 4px; cursor: pointer; border: 1px solid #444; transition: 0.2s; font-size: 13px; }
+        .toggle-label.active { background: #007acc; border-color: #007acc; color: white; }
+        
+        /* Поля ввода */
+        .form-group { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+        .form-group label { font-size: 13px; color: #cccccc; flex-grow: 1; margin-right: 15px; }
+        .form-group input { width: 140px; padding: 6px; background: #3c3c3c; border: 1px solid #3c3c3c; color: #fff; border-radius: 3px; font-size: 13px; box-sizing: border-box; text-align: center !important; transition: border 0.2s; }
+        .form-group input:focus { border-color: #007acc; outline: none; }
+        
+        /* Текстовая область для списка */
+        textarea.list-input { width: 100%; height: 100px; background: #3c3c3c; color: #fff; border: 1px solid #444; border-radius: 4px; padding: 10px; box-sizing: border-box; resize: vertical; font-family: monospace; font-size: 13px; text-align: center; }
+        textarea.list-input:focus { border-color: #007acc; outline: none; }
+
+        /* Скрытые блоки */
+        .hidden { display: none !important; }
+
+        /* Холст SVG */
+        .svg-container { flex-grow: 1; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #1e1e1e; border-radius: 4px; border: 1px dashed #444; margin-bottom: 20px; min-height: 200px; }
+        svg { max-width: 100%; max-height: 100%; background-color: #ffffff; border-radius: 2px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        
+        /* Блок кода Bash */
+        .code-block { position: relative; display: flex; flex-direction: column; flex-grow: 1; }
+        textarea.code-output { flex-grow: 1; background: #1e1e1e; color: #ce9178; font-family: 'Consolas', 'Courier New', monospace; font-size: 13px; padding: 15px; border: 1px solid #444; border-radius: 4px; resize: none; line-height: 1.4; outline: none; min-height: 200px; }
+        
+        .btn-copy { background-color: #007acc; color: white; border: none; padding: 10px 15px; font-size: 13px; font-weight: bold; border-radius: 4px; cursor: pointer; transition: background 0.2s; margin-top: 10px; text-align: center; }
+        .btn-copy:hover { background-color: #0098ff; }
+        .btn-copy.success { background-color: #4CAF50; }
+        .btn-copy.error { background-color: #c0392b; }
+        .btn-print { background-color: #4CAF50; }
+        .btn-print:hover { background-color: #5cc85f; }
+        .btn-print:disabled { background-color: #555; cursor: not-allowed; }
+        
+        .hint { font-size: 11px; color: #888; text-align: center; margin-top: 10px; }
+        .status-line { min-height: 18px; font-size: 12px; color: #888; text-align: center; margin-top: 8px; }
+        .status-line.success { color: #6bd16b; }
+        .status-line.error { color: #ff7b72; }
+    </style>
+</head>
+<body>
+
+<div class="main-wrapper">
+    <div class="panel">
+        <h2>Настройки шаблона</h2>
+        
+        <select class="preset-select" id="presetSelect" onchange="applyPreset()">
+            <option value="micro">Пресет: Этикетка (43x24 мм)</option>
+            <option value="box">Пресет: Штрихкод + номер (43x24 мм)</option>
+        </select>
+
+        <div class="section-title">Размер этикетки (мм)</div>
+        <div class="form-group"><label>Ширина:</label><input type="number" id="width" value="43"></div>
+        <div class="form-group"><label>Высота:</label><input type="number" id="height" value="24"></div>
+        <div class="form-group"><label>Зазор (GAP):</label><input type="number" id="gap" value="2"></div>
+
+        <div class="section-title">Координаты текста (точки)</div>
+        <div class="form-group"><label>Отступ X (Слева):</label><input type="number" id="xDot" value="48"></div>
+        <div class="form-group"><label>Отступ Y (Базовая линия):</label><input type="number" id="yDot" value="180"></div>
+        <div class="form-group"><label>Масштаб шрифта:</label><input type="text" id="fontScale" value="3.5"></div>
+
+        <div class="section-title">Источник номеров</div>
+        <div class="toggle-group">
+            <div class="toggle-label active" id="btnModeRange" onclick="setMode('range')">Диапазон (Seq)</div>
+            <div class="toggle-label" id="btnModeList" onclick="setMode('list')">Список из буфера</div>
+        </div>
+
+        <div id="blockRange">
+            <div class="form-group"><label>Начальный номер:</label><input type="number" id="seqStart" value="4203"></div>
+            <div class="form-group"><label>Конечный номер:</label><input type="number" id="seqEnd" value="4204"></div>
+            <div class="form-group"><label>Хвост (неизменная часть):</label><input type="text" id="seqTail" value="-2026"></div>
+        </div>
+
+        <div id="blockList" class="hidden">
+            <textarea class="list-input" id="customList" placeholder="Вставьте номера сюда...&#10;4203-2026&#10;4204-2026&#10;4205-2026">4203-2026&#10;4204-2026</textarea>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>Превью первой этикетки</h2>
+        <div class="svg-container">
+            <svg id="previewSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+        <div class="hint">Ширина букв откалибрована под реальный шрифт принтера.<br>Отображение построено по принципу базовой линии TSPL.</div>
+    </div>
+
+    <div class="panel">
+        <h2>Готовые TSPL-команды</h2>
+        <div class="code-block">
+            <textarea class="code-output" id="bashOutput" readonly></textarea>
+            <button class="btn-copy btn-print" id="printBtn" onclick="printLabel()">Печать</button>
+            <button class="btn-copy" id="copyBtn" onclick="copyCode()">Скопировать в буфер обмена</button>
+            <div class="status-line" id="printStatus"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- Данные пресетов ---
+    const presets = {
+        'micro': { w: 43, h: 24, g: 2, x: 48, y: 180, s: "3.5", type: "text" },
+        'box': {
+            w: 43,
+            h: 24,
+            g: 2,
+            x: 100,
+            y: 230,
+            s: "2",
+            type: "barcode",
+            speed: 2,
+            density: 6,
+            barcodeX: 130,
+            barcodeY: 75,
+            barcodeHeight: 120,
+            barcodeNarrow: 2,
+            barcodeWide: 4,
+            seqStart: 2703,
+            seqEnd: 2715,
+            seqTail: "-2026"
+        }
+    };
+
+    let currentMode = 'range';
+
+    // --- Инициализация и слушатели ---
+    const inputs = document.querySelectorAll('input, textarea');
+    inputs.forEach(input => {
+        input.addEventListener('input', () => {
+            updatePreview();
+            updateCode();
+        });
+    });
+
+    // --- Логика UI ---
+    function safeFloat(id, defaultVal) {
+        let val = document.getElementById(id).value.replace(',', '.');
+        let parsed = parseFloat(val);
+        return isNaN(parsed) ? defaultVal : parsed;
+    }
+
+    function applyPreset() {
+        const val = document.getElementById('presetSelect').value;
+        const p = presets[val];
+        if(!p) return;
+
+        document.getElementById('width').value = p.w;
+        document.getElementById('height').value = p.h;
+        document.getElementById('gap').value = p.g;
+        document.getElementById('xDot').value = p.x;
+        document.getElementById('yDot').value = p.y;
+        document.getElementById('fontScale').value = p.s;
+        if (p.seqStart !== undefined) document.getElementById('seqStart').value = p.seqStart;
+        if (p.seqEnd !== undefined) document.getElementById('seqEnd').value = p.seqEnd;
+        if (p.seqTail !== undefined) document.getElementById('seqTail').value = p.seqTail;
+        
+        updatePreview();
+        updateCode();
+    }
+
+    function setMode(mode) {
+        currentMode = mode;
+        if (mode === 'range') {
+            document.getElementById('btnModeRange').classList.add('active');
+            document.getElementById('btnModeList').classList.remove('active');
+            document.getElementById('blockRange').classList.remove('hidden');
+            document.getElementById('blockList').classList.add('hidden');
+        } else {
+            document.getElementById('btnModeList').classList.add('active');
+            document.getElementById('btnModeRange').classList.remove('active');
+            document.getElementById('blockList').classList.remove('hidden');
+            document.getElementById('blockRange').classList.add('hidden');
+        }
+        updatePreview();
+        updateCode();
+    }
+
+    // --- Логика отрисовки ---
+    function updatePreview() {
+        const width = safeFloat('width', 43);
+        const height = safeFloat('height', 24);
+        const xDot = safeFloat('xDot', 48);
+        const yDot = safeFloat('yDot', 180);
+        const fontScale = safeFloat('fontScale', 3.5);
+        const preset = presets[document.getElementById('presetSelect').value] || presets.micro;
+
+        // Получаем текст для превью
+        let textStr = "";
+        if (currentMode === 'range') {
+            const seqStart = document.getElementById('seqStart').value || "0000";
+            const seqTail = document.getElementById('seqTail').value || "";
+            textStr = `${seqStart}${seqTail}`;
+        } else {
+            const listLines = document.getElementById('customList').value.split('\n').map(l => l.trim()).filter(l => l !== "");
+            textStr = listLines.length > 0 ? listLines[0] : "ПУСТОЙ СПИСОК";
+        }
+
+        const svg = document.getElementById('previewSvg');
+        svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        
+        let svgContent = `<rect x="0" y="0" width="${width}" height="${height}" fill="#ffffff" />`;
+
+        // Математика координат (300 DPI = 11.81 точек/мм)
+        const dotsPerMM = 11.81; 
+        const cx = xDot / dotsPerMM;
+        const cy = yDot / dotsPerMM;
+        
+        if (preset.type === "barcode") {
+            const barcodeX = (preset.barcodeX || 130) / dotsPerMM;
+            const barcodeY = (preset.barcodeY || 75) / dotsPerMM;
+            const barcodeWidth = Math.max(10, width - barcodeX - 1);
+            const barcodeHeight = (preset.barcodeHeight || 120) / dotsPerMM;
+            const barCount = 26;
+            const barStep = barcodeWidth / barCount;
+
+            for (let i = 0; i < barCount; i += 2) {
+                const barWidth = i % 4 === 0 ? barStep * 0.9 : barStep * 0.45;
+                svgContent += `<rect x="${barcodeX + i * barStep}" y="${barcodeY}" width="${barWidth}" height="${barcodeHeight}" fill="#111" />`;
+            }
+
+            const textFontSizeMM = fontScale * 2.15;
+            let barcodeTextWidth = textStr.length * (textFontSizeMM * 0.54);
+            const barcodeTextMaxWidth = width - cx - 1;
+            if (barcodeTextWidth > barcodeTextMaxWidth) {
+                barcodeTextWidth = barcodeTextMaxWidth;
+            }
+
+            svgContent += `<text x="${cx}" y="${cy}"
+                font-family="'Courier New', monospace"
+                font-size="${textFontSizeMM}"
+                font-weight="bold"
+                fill="#111"
+                dominant-baseline="alphabetic"
+                textLength="${barcodeTextWidth}"
+                lengthAdjust="spacingAndGlyphs">${textStr}</text>`;
+        } else {
+            // Высота шрифта TSPL
+            const fontSizeMM = fontScale * 2.15; 
+            
+            // УВЕЛИЧЕННЫЙ КОЭФФИЦИЕНТ ШИРИНЫ (было 0.45, стало 0.54):
+            // Теперь буквы визуально шире и занимают место как на реальной фотографии
+            let estTextWidth = textStr.length * (fontSizeMM * 0.54);
+            
+            // Мягкий ограничитель: текст не выйдет за правый край, оставляя минимальный зазор 1 мм
+            const maxWidth = width - cx - 1;
+            if (estTextWidth > maxWidth) {
+                estTextWidth = maxWidth;
+            }
+
+            // Отрисовка
+            svgContent += `<text x="${cx}" y="${cy}" 
+                font-family="'Courier New', monospace" 
+                font-size="${fontSizeMM}" 
+                font-weight="bold" 
+                fill="#111" 
+                dominant-baseline="alphabetic"
+                textLength="${estTextWidth}"
+                lengthAdjust="spacingAndGlyphs">${textStr}</text>`;
+        }
+        
+        svg.innerHTML = svgContent;
+    }
+
+    // --- Генерация TSPL кода ---
+    function updateCode() {
+        const width = document.getElementById('width').value;
+        const height = document.getElementById('height').value;
+        const gap = document.getElementById('gap').value;
+        const xDot = document.getElementById('xDot').value;
+        const yDot = document.getElementById('yDot').value;
+        const fontScale = document.getElementById('fontScale').value;
+        const preset = presets[document.getElementById('presetSelect').value] || presets.micro;
+
+        let tspl = "";
+
+        const textTemplate = (labelText) => `SIZE ${width} mm, ${height} mm
+GAP ${gap} mm, 0 mm
+DIRECTION 1
+CLS
+TEXT ${xDot},${yDot},"3",0,${fontScale},${fontScale},"${labelText}"
+PRINT 1`;
+
+        const barcodeHeader = () => `SIZE ${width} mm, ${height} mm
+GAP ${gap} mm, 0 mm
+DIRECTION 1
+SPEED ${preset.speed || 2}
+DENSITY ${preset.density || 6}`;
+
+        const barcodeTemplate = (labelText) => `CLS
+BARCODE ${preset.barcodeX || 130},${preset.barcodeY || 75},"128",${preset.barcodeHeight || 120},0,0,${preset.barcodeNarrow || 2},${preset.barcodeWide || 4},"${labelText}"
+TEXT ${xDot},${yDot},"3",0,${fontScale},${fontScale},"${labelText}"
+PRINT 1`;
+
+        const escapeTsplText = (value) => String(value).replace(/"/g, '\\"');
+
+        if (currentMode === 'range') {
+            const seqStart = parseInt(document.getElementById('seqStart').value, 10);
+            const seqEnd = parseInt(document.getElementById('seqEnd').value, 10);
+            const seqTail = document.getElementById('seqTail').value;
+            const labels = [];
+
+            if (!Number.isNaN(seqStart) && !Number.isNaN(seqEnd)) {
+                const step = seqStart <= seqEnd ? 1 : -1;
+                for (let n = seqStart; step > 0 ? n <= seqEnd : n >= seqEnd; n += step) {
+                    labels.push(`${n}${seqTail}`);
+                }
+            }
+
+            if (preset.type === "barcode") {
+                tspl = [barcodeHeader(), ...labels.map(label => barcodeTemplate(escapeTsplText(label)))].join('\n');
+            } else {
+                tspl = labels.map(label => textTemplate(escapeTsplText(label))).join('\n');
+            }
+        } else {
+            const listRaw = document.getElementById('customList').value;
+            const listLines = listRaw.split('\n').map(l => l.trim()).filter(l => l !== "");
+
+            if (preset.type === "barcode") {
+                tspl = [barcodeHeader(), ...listLines.map(label => barcodeTemplate(escapeTsplText(label)))].join('\n');
+            } else {
+                tspl = listLines.map(label => textTemplate(escapeTsplText(label))).join('\n');
+            }
+        }
+
+        if (tspl) {
+            tspl = tspl.replace(/\r\n?/g, '\n').replace(/\n*$/, '\n');
+        }
+        document.getElementById('bashOutput').value = tspl;
+    }
+
+    // --- Копирование ---
+    function copyCode() {
+        const copyText = document.getElementById('bashOutput');
+        const btn = document.getElementById('copyBtn');
+        
+        copyText.select();
+        copyText.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(copyText.value).then(() => {
+            btn.innerText = "✓ Скопировано!";
+            btn.classList.add('success');
+            setTimeout(() => {
+                btn.innerText = "Скопировать в буфер обмена";
+                btn.classList.remove('success');
+            }, 2000);
+        });
+    }
+
+    async function printLabel() {
+        updateCode();
+
+        const tspl = document.getElementById('bashOutput').value;
+        const btn = document.getElementById('printBtn');
+        const status = document.getElementById('printStatus');
+
+        if (!tspl.trim()) {
+            status.textContent = "Нет TSPL-команд для печати";
+            status.className = "status-line error";
+            return;
+        }
+
+        btn.disabled = true;
+        status.textContent = "Отправка на принтер...";
+        status.className = "status-line";
+
+        try {
+            const response = await fetch('/print', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tspl })
+            });
+            const result = await response.json().catch(() => ({}));
+
+            if (!response.ok || !result.ok) {
+                throw new Error(result.error || `Ошибка HTTP ${response.status}`);
+            }
+
+            status.textContent = "Отправлено на принтер";
+            status.className = "status-line success";
+        } catch (error) {
+            status.textContent = `Ошибка печати: ${error.message}`;
+            status.className = "status-line error";
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    // Первоначальный рендер
+    updatePreview();
+    updateCode();
+</script>
+
+</body>
+</html>
